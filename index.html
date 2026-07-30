@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quiz — Présentation</title>
+<style>
+  :root {
+    --ink: #14141c;
+    --paper: #f7f7fb;
+    --card: #ffffff;
+    --accent: #4f46e5;
+    --accent-soft: #eef0ff;
+    --line: #e6e6ef;
+    --good: #16a34a;
+    --bad: #dc2626;
+    --shadow: 0 20px 50px -20px rgba(20,20,28,0.25);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--paper);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: var(--ink);
+    overflow-x: hidden;
+  }
+
+  /* ---------------- QUIZ SHELL (design "sérieux") ---------------- */
+  .shell {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 60px 20px 120px;
+  }
+
+  .eyebrow {
+    text-align: center;
+    font-size: 0.8rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  h1.title {
+    text-align: center;
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin: 0 0 40px;
+  }
+
+  .card {
+    background: var(--card);
+    border-radius: 20px;
+    box-shadow: var(--shadow);
+    padding: 32px;
+    border: 1px solid var(--line);
+  }
+
+  .progress-track {
+    height: 6px;
+    background: var(--line);
+    border-radius: 999px;
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    width: 33%;
+    transition: width 0.4s ease;
+  }
+
+  .progress-label {
+    font-size: 0.85rem;
+    color: #6b6b7b;
+    margin-bottom: 20px;
+    font-weight: 500;
+  }
+
+  .question { display: none; animation: fadeUp 0.35s ease; }
+  .question.active { display: block; }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .question h3 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin: 0 0 18px;
+  }
+
+  .options button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 14px 16px;
+    margin: 8px 0;
+    background: var(--paper);
+    border: 1.5px solid var(--line);
+    border-radius: 12px;
+    font-size: 0.98rem;
+    font-family: inherit;
+    color: var(--ink);
+    cursor: pointer;
+    transition: 0.15s;
+  }
+  .options button:hover:not(:disabled) {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+  .options button.correct { background: #ecfdf3; border-color: var(--good); color: #14532d; }
+  .options button.wrong { background: #fef2f2; border-color: var(--bad); color: #7f1d1d; }
+  .options button:disabled { cursor: default; }
+
+  .nav-btn {
+    margin-top: 20px;
+    padding: 12px 22px;
+    background: var(--ink);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: none;
+  }
+  .nav-btn.show { display: inline-block; }
+  .nav-btn:hover { background: var(--accent); }
+
+  .result { display: none; text-align: center; }
+  .result.active { display: block; }
+  .result .score {
+    font-size: 3rem;
+    font-weight: 700;
+    color: var(--accent);
+    margin: 10px 0;
+  }
+  .result p.sub { color: #6b6b7b; }
+
+  footer.note {
+    text-align: center;
+    font-size: 0.78rem;
+    color: #9a9aab;
+    margin-top: 28px;
+  }
+
+  /* ---------------- FAUSSES PUBS / POPUPS ---------------- */
+  #ad-layer {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 500;
+  }
+
+  .popup {
+    position: absolute;
+    pointer-events: auto;
+    width: 300px;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 25px 60px -15px rgba(0,0,0,0.45);
+    overflow: hidden;
+    animation: popIn 0.35s cubic-bezier(.2,1.4,.4,1);
+    font-family: 'Inter', sans-serif;
+  }
+  @keyframes popIn {
+    from { opacity: 0; transform: scale(0.85) rotate(var(--rot,0deg)); }
+    to { opacity: 1; transform: scale(1) rotate(var(--rot,0deg)); }
+  }
+
+  .popup .p-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    background: var(--accent);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .popup .p-close {
+    background: rgba(255,255,255,0.25);
+    border: none;
+    color: white;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .popup .p-body { padding: 16px; }
+
+  .popup.prize .p-head { background: linear-gradient(90deg,#f59e0b,#ef4444); }
+  .popup.prize .p-body { text-align: center; }
+  .popup.prize .big { font-size: 1.4rem; font-weight: 800; color: #b45309; margin: 6px 0; }
+  .popup.prize button.cta {
+    margin-top: 10px; width: 100%; padding: 10px; border: none; border-radius: 10px;
+    background: #f59e0b; color: white; font-weight: 700; cursor: pointer;
+  }
+
+  .popup.friend .p-head { background: linear-gradient(90deg,#ec4899,#8b5cf6); }
+  .popup.friend .p-body { display: flex; gap: 12px; align-items: center; }
+  .popup.friend .avatar {
+    width: 56px; height: 56px; border-radius: 50%; object-fit: cover;
+    background: var(--accent-soft); flex-shrink: 0;
+  }
+  .popup.friend .avatar-fallback {
+    width: 56px; height: 56px; border-radius: 50%; flex-shrink: 0;
+    background: var(--accent-soft); color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.6rem; text-align: center; line-height: 1.1; padding: 4px;
+    border: 1px dashed var(--accent);
+  }
+  .popup.friend .txt { font-size: 0.85rem; }
+  .popup.friend .txt b { color: var(--ink); }
+  .popup.friend .txt .cta-link { color: var(--accent); font-weight: 600; cursor: pointer; }
+
+  .popup.cookie {
+    width: 340px;
+  }
+  .popup.cookie .p-head { background: #111827; }
+  .popup.cookie .p-body p { font-size: 0.85rem; color: #444; margin: 0 0 12px; }
+  .popup.cookie .row { display: flex; gap: 8px; }
+  .popup.cookie button {
+    flex: 1; padding: 9px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; font-size: 0.85rem;
+  }
+  .popup.cookie .accept-all { background: var(--ink); color: white; }
+  .popup.cookie .accept-more { background: var(--line); color: var(--ink); }
+
+  .popup.chat {
+    width: 260px;
+  }
+  .popup.chat .p-head { background: #0ea5e9; }
+  .popup.chat .p-body { font-size: 0.85rem; }
+  .popup.chat .bubble {
+    background: #f0f9ff; border-radius: 10px; padding: 8px 10px; margin-bottom: 8px;
+  }
+
+  .popup.notif { width: 300px; }
+  .popup.notif .p-head { background: #64748b; }
+  .popup.notif .p-body { font-size: 0.85rem; }
+  .popup.notif .row { display: flex; gap: 8px; margin-top: 10px; }
+  .popup.notif button {
+    flex: 1; padding: 8px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; font-size: 0.82rem;
+  }
+  .popup.notif .allow { background: var(--accent); color: white; }
+  .popup.notif .block { background: var(--line); }
+
+  .popup.video {
+    width: 220px;
+  }
+  .popup.video .p-head { background: #ef4444; }
+  .popup.video .p-body {
+    padding: 0; position: relative; aspect-ratio: 16/9;
+    background: linear-gradient(135deg,#1f2937,#111827);
+    display: flex; align-items: center; justify-content: center;
+    color: #9ca3af; font-size: 0.75rem; text-align: center;
+    background-image: url(./img/IMG_6650.JPG);
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center;
+  }
+  .popup.video .mute {
+    position: absolute; bottom: 8px; right: 8px;
+    background: rgba(255,255,255,0.15); border: none; color: white;
+    width: 26px; height: 26px; border-radius: 50%; cursor: pointer;
+  }
+
+  @media (max-width: 640px) {
+    .popup { width: 84vw !important; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     PERSONNALISATION RAPIDE
+     - Photos d'amis : ajoute des fichiers ami1.jpg, ami2.jpg, ami3.jpg
+       dans le même dossier que ce fichier HTML.
+       Sans fichier, un placeholder s'affiche à la place (aucune erreur).
+     - Prénoms : modifie le tableau `friends` tout en bas du <script>.
+     - Questions du quiz : modifie les blocs <div class="question">.
+     ============================================================ -->
+
+<div class="shell">
+  <p class="eyebrow">Après la présentation</p>
+  <h1 class="title">Le quiz</h1>
+
+  <div class="card" id="quizCard">
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-label" id="progressLabel">Question 1 sur 3</div>
+
+    <div class="question active" data-index="0">
+      <h3>Quel est le sujet de cette présentation ?</h3>
+      <div class="options">
+        <button data-correct="true">Rasberry Pi</button>
+        <button>Mon addiction au crack</button>
+        <button>La queue de canard est un tire bouchon</button>
+        <button>La réponse D</button>
+      </div>
+    </div>
+
+    <div class="question" data-index="1">
+      <h3>Quelle a été la meilleure vanne ?</h3>
+      <div class="options">
+        <button>Celle sur mon ex</button>
+        <button data-correct="true">Celle du RickRoll</button>
+        <button>Celle sur Emilien</button>
+        <button>La réponse D</button>
+      </div>
+    </div>
+
+    <div class="question" data-index="2">
+      <h3>Qu'est ce qui est jaune et qui attend ?</h3>
+      <div class="options">
+        <button>Jonathan 🤣</button>
+        <button>Un ouigour à l'entrée de l'usine</button>
+        <button data-correct="true">Ta gueule bouffon</button>
+        <button>La réponse D</button>
+      </div>
+    </div>
+
+    <div class="question" data-index="3">
+      <h3>En vrai tu me donnes combien pour cette présentation ?</h3>
+      <div class="options">
+        <button>20/20</button>
+        <button data-correct="true">50€</button>
+        <button>A+</button>
+        <button>La réponse D</button>
+      </div>
+    </div>
+
+    <div class="question" data-index="4">
+      <h3>Est ce que tu veux me pécho ?</h3>
+      <div class="options">
+        <button>Oui</button>
+        <button>Oui</button>
+        <button>Oui</button>
+        <button data-correct="true">La réponse D (Oui)</button>
+      </div>
+    </div>
+
+    <button class="nav-btn" id="nextBtn">Question suivante</button>
+
+    <div class="result" id="result">
+      <p class="sub">Score final</p>
+      <div class="score" id="scoreText">0 / 3</div>
+      <p class="sub">Bravo, tu as survécu à toutes les fausses pubs.</p>
+      <button class="nav-btn show" onclick="location.reload()">Recommencer</button>
+    </div>
+  </div>
+
+  <footer class="note">Bravo tu as terminé le quizz, dommage c'était pas utile.</footer>
+</div>
+
+<div id="ad-layer"></div>
+
+<script>
+  /* ---------------- QUIZ ---------------- */
+  const questions = document.querySelectorAll('.question');
+  const nextBtn = document.getElementById('nextBtn');
+  const progressLabel = document.getElementById('progressLabel');
+  const progressFill = document.getElementById('progressFill');
+  const result = document.getElementById('result');
+  let current = 0, score = 0;
+  const total = questions.length;
+
+  function showQuestion(i) {
+    questions.forEach((q, idx) => q.classList.toggle('active', idx === i));
+    progressLabel.textContent = `Question ${i + 1} sur ${total}`;
+    progressFill.style.width = `${((i) / total) * 100 + (100/total)}%`;
+    nextBtn.classList.remove('show');
+  }
+
+  questions.forEach(q => {
+    const buttons = q.querySelectorAll('.options button');
+    buttons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (btn.disabled) return;
+        buttons.forEach(b => b.disabled = true);
+        if (btn.dataset.correct === 'true') {
+          btn.classList.add('correct');
+          score++;
+        } else {
+          btn.classList.add('wrong');
+          buttons.forEach(b => { if (b.dataset.correct === 'true') b.classList.add('correct'); });
+        }
+        nextBtn.classList.add('show');
+      });
+    });
+  });
+
+  nextBtn.addEventListener('click', () => {
+    current++;
+    if (current < total) {
+      showQuestion(current);
+    } else {
+      questions.forEach(q => q.style.display = 'none');
+      document.querySelector('.progress-track').style.display = 'none';
+      progressLabel.style.display = 'none';
+      nextBtn.style.display = 'none';
+      result.classList.add('active');
+      document.getElementById('scoreText').textContent = `${score} / ${total}`;
+    }
+  });
+
+  /* ---------------- POPUPS ENVAHISSANTS ---------------- */
+  // Démo Pi-hole : ajoute ?cleanRender=1 (ou &cleanRender=1) à l'URL pour
+  // simuler un blocage total des pubs, comme si Pi-hole tournait.
+  const params = new URLSearchParams(window.location.search);
+  const cleanRender = params.get('cleanRender') === '1';
+
+  const adLayer = document.getElementById('ad-layer');
+
+  // Personnalise ici les prénoms de tes amis et le nom de leur photo
+  const friends = [
+    { name: 'Lucas',    file: './img/IMG_6654.JPG', text: 'peut te lancer un sort, veux-tu y gouter ? 🤤' },
+    { name: 'Martin',   file: './img/IMG_6655.JPG', text: 'a gagné 340€ ce mois-ci grâce à son énorme sexe.' },
+    { name: 'Tristan',  file: './img/IMG_6652.JPG', text: ': "Tu veux gagner des millions ? Suis ma formation gratuite à 99€ par mois."' },
+    { name: 'Esteban',  file: './img/IMG_6653.JPG', text: 'est prêt à t\'ouvrir le cul. Découvre les mecs chauds près de chez toi.' },
+    { name: 'Louis',    file: './img/05EFBBC8-3CE9-4D97-8047-6AB81200077A.JPG', text: 'a investit 2€ dans la crypto, le voila cheik Émirati.' },
+    { name: 'Manon',    file: './img/IMG_6266.jpg', text: 'est là pour t\'écouter toute la nuit de l\'oreille gauche.' },
+    { name: 'Marie',    file: './img/IMG_6266.jpg', text: 'est déja féline de toi. Découvre la panthère qui se cache derrière cette cougar.' },
+  ];
+
+  // Système de "sac mélangé" (comme les pièces dans Tetris) : on tire tous les
+  // éléments d'une liste un par un, dans un ordre aléatoire, sans jamais en
+  // rejouer un avant que tous les autres soient passés. Une fois le sac vide,
+  // on le remélange pour un nouveau tour.
+  function createBag(items) {
+    let bag = [];
+    let lastPicked = null;
+
+    function refill() {
+      bag = [...items];
+      for (let i = bag.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [bag[i], bag[j]] = [bag[j], bag[i]];
+      }
+      // Évite d'enchaîner deux fois le même élément à la jonction entre deux sacs
+      if (bag.length > 1 && bag[bag.length - 1] === lastPicked) {
+        [bag[bag.length - 1], bag[0]] = [bag[0], bag[bag.length - 1]];
+      }
+    }
+
+    return function next() {
+      if (bag.length === 0) refill();
+      const item = bag.pop();
+      lastPicked = item;
+      return item;
+    };
+  }
+
+  function randomPos(width) {
+    const maxX = Math.max(window.innerWidth - width - 20, 20);
+    const maxY = Math.max(window.innerHeight - 200, 100);
+    const x = Math.random() * maxX;
+    const y = Math.random() * maxY;
+    const rot = (Math.random() * 6 - 3).toFixed(1);
+    return { x, y, rot };
+  }
+
+  function spawn(el, width) {
+    const { x, y, rot } = randomPos(width);
+    el.style.left = x + 'px';
+    el.style.top = y + 'px';
+    el.style.setProperty('--rot', rot + 'deg');
+    adLayer.appendChild(el);
+  }
+
+  function closeBtnHTML() { return '<button class="p-close" aria-label="Fermer">✕</button>'; }
+
+  function makePrize() {
+    const el = document.createElement('div');
+    el.className = 'popup prize';
+    el.style.width = '280px';
+    el.innerHTML = `
+      <div class="p-head">Félicitations ${closeBtnHTML()}</div>
+      <div class="p-body">
+        <div class="big">🎉 Offre débloquée</div>
+        <p style="font-size:0.85rem;color:#555;margin:0 0 8px;">Tu es sélectionné(e) gagner ce magnifique Vaginator 3000 !</p>
+        <button class="cta">Réclamer</button>
+      </div>`;
+    el.querySelector('.p-close').onclick = () => el.remove();
+    spawn(el, 280);
+  }
+
+  const nextFriend = createBag(friends);
+
+  function makeFriend() {
+    const f = nextFriend();
+    const el = document.createElement('div');
+    el.className = 'popup friend';
+    el.innerHTML = `
+      <div class="p-head">Suggestion pour toi ${closeBtnHTML()}</div>
+      <div class="p-body">
+        <img class="avatar" src="${f.file}" alt="${f.name}"
+             onerror="this.outerHTML='<div class=&quot;avatar-fallback&quot;>Ajoute<br>${f.file}</div>'">
+        <div class="txt"><b>${f.name}</b> ${f.text}<br><span class="cta-link">En savoir plus →</span></div>
+      </div>`;
+    el.querySelector('.p-close').onclick = () => el.remove();
+    spawn(el, 300);
+  }
+
+  function makeNotif() {
+    const el = document.createElement('div');
+    el.className = 'popup notif';
+    el.innerHTML = `
+      <div class="p-head">Notifications ${closeBtnHTML()}</div>
+      <div class="p-body">
+        Ce site tente d'installer un logiciel sur votre iPhone ?
+        <div class="row">
+          <button class="allow">Autoriser</button>
+          <button class="block">Bloquer</button>
+        </div>
+      </div>`;
+    el.querySelector('.p-close').onclick = () => el.remove();
+    el.querySelectorAll('.row button').forEach(b => b.onclick = () => el.remove());
+    spawn(el, 300);
+  }
+
+  function makeVideo() {
+    const el = document.createElement('div');
+    el.className = 'popup video';
+    el.innerHTML = `
+      <div class="p-head">Pub vidéo ${closeBtnHTML()}</div>
+      <div class="p-body pub-video">
+        ▶ Lecture automatique
+        <button class="mute">🔇</button>
+      </div>`;
+    el.querySelector('.p-close').onclick = () => el.remove();
+    el.querySelector('.mute').onclick = () => {};
+    spawn(el, 220);
+  }
+
+  // Poids relatif de chaque type de pub dans le sac : plus une pub est
+  // dupliquée ici, plus elle a de chances de sortir souvent, sans jamais
+  // revenir deux fois de suite au même tirage.
+  const weights = {
+    makePrize: 1,
+    makeFriend: 10,
+    makeNotif: 1,
+    makeVideo: 1,
+  };
+  const generatorsRaw = { makePrize, makeFriend, makeNotif, makeVideo };
+  const generators = Object.entries(weights).flatMap(([name, count]) =>
+    Array(count).fill(generatorsRaw[name])
+  );
+  const nextGenerator = createBag(generators);
+
+  function spawnRandom() {
+    const fn = nextGenerator();
+    fn();
+  }
+
+  if (!cleanRender) {
+    // Vague initiale au chargement
+    window.addEventListener('load', () => {
+      makeFriend();
+      setTimeout(makePrize, 250);
+      setTimeout(makeFriend, 400);
+    });
+
+    // Nouvelles pubs en continu — ferme-les, il en revient toujours une autre
+    setInterval(() => {
+      if (adLayer.children.length < 15) spawnRandom();
+    }, 2500);
+  } else {
+    // Petit badge discret pour la démo, confirmant que le blocage est actif
+    const badge = document.createElement('div');
+    badge.textContent = '🛡️ Adblocker détécté. Pubs bloquées';
+    badge.style.cssText = `
+      position: fixed; bottom: 16px; right: 16px;
+      background: #111827; color: #86efac;
+      font-family: 'Inter', sans-serif; font-size: 0.75rem; font-weight: 600;
+      padding: 8px 14px; border-radius: 999px; z-index: 600;
+      box-shadow: 0 10px 25px -8px rgba(0,0,0,0.4);
+    `;
+    document.body.appendChild(badge);
+  }
+</script>
+
+</body>
+</html>
